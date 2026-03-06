@@ -200,7 +200,7 @@ const UNIQUE_IMAGE_KEY = {
   "Grapes (Wine)": "Grape_wine",
 };
 
-const urduStyle = { direction: "rtl", textAlign: "right", fontFamily: "'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif", color: "#5D4E37" };
+const ur = { direction: "rtl", textAlign: "right", fontFamily: "'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif", color: "#7A6B5A" };
 
 function ItemCard({ item, images }) {
   const d = DIFF[item.diff];
@@ -214,24 +214,24 @@ function ItemCard({ item, images }) {
         {imgUrl ? <img src={imgUrl} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ width: "100%", height: "100%", background: "#e8e4de", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#aaa", fontFamily: "'DM Sans', sans-serif", textAlign: "center", padding: 4, lineHeight: 1.2 }}>{item.name.split(/[\s/]/)[0]}</div>}
       </div>
       <div style={{ minWidth: 0 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 3 }}>
-          <div>
-            <div style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 15, fontWeight: 700, color: "#2C3E2D", lineHeight: 1.2 }}>{item.name}</div>
-            {u && <div style={{ ...urduStyle, fontSize: 13, fontWeight: 700, lineHeight: 1.6 }}>{u.name}</div>}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 2 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 15, fontWeight: 700, color: "#2C3E2D", lineHeight: 1.2 }}>{item.name}</span>
+            {u && <span style={{ ...ur, fontSize: 12, fontWeight: 700, lineHeight: 1.4 }}>{u.name}</span>}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <span style={{ fontSize: 9, fontWeight: 600, color: d.color, whiteSpace: "nowrap" }}>{d.dots} {d.label}</span>
             <span style={{ fontSize: 14, color: "#ccc", letterSpacing: 2 }}>☐☐☐☐</span>
           </div>
         </div>
-        <div style={{ fontSize: 10, color: "#666", lineHeight: 1.4, marginBottom: 3 }}>{item.desc}</div>
-        {u && <div style={{ ...urduStyle, fontSize: 11, lineHeight: 1.8, marginBottom: 3, opacity: 0.85 }}>{u.desc}</div>}
-        <div style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 2 }}>
+        <div style={{ fontSize: 10, color: "#666", lineHeight: 1.4, marginBottom: 1 }}>{item.desc}</div>
+        {u && <div style={{ ...ur, fontSize: 10, lineHeight: 1.5, marginBottom: 3 }}>{u.desc}</div>}
+        <div style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 1 }}>
           <span style={{ color: "#1E6B3A", fontWeight: 700, fontSize: 9, textTransform: "uppercase", letterSpacing: 0.3 }}>Varieties: </span>{item.varieties}
         </div>
-        {u && <div style={{ ...urduStyle, fontSize: 10, lineHeight: 1.8, marginBottom: 2, opacity: 0.85 }}><span style={{ color: "#1E6B3A", fontWeight: 700, fontSize: 9 }}>:اقسام </span>{u.varieties}</div>}
-        <div style={{ fontSize: 9, color: "#999", fontStyle: "italic", lineHeight: 1.35 }}>{item.notes}</div>
-        {u && <div style={{ ...urduStyle, fontSize: 10, lineHeight: 1.8, color: "#8B7D6B", fontStyle: "italic" }}>{u.notes}</div>}
+        {u && <div style={{ ...ur, fontSize: 9, lineHeight: 1.5, marginBottom: 3 }}><span style={{ color: "#1E6B3A", fontWeight: 700 }}>اقسام: </span>{u.varieties}</div>}
+        <div style={{ fontSize: 9, color: "#999", fontStyle: "italic", lineHeight: 1.35, marginBottom: 1 }}>{item.notes}</div>
+        {u && <div style={{ ...ur, fontSize: 9, lineHeight: 1.5, color: "#9B8E7E", fontStyle: "italic" }}>{u.notes}</div>}
       </div>
     </div>
   );
