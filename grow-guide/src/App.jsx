@@ -291,7 +291,7 @@ export default function GrowGuide() {
           @page { margin: 0.4in 0.5in; size: letter; }
           .no-print { display: none !important; }
           .page-break { page-break-before: always; break-before: page; }
-          .category-section { break-inside: avoid-page; }
+          .category-section { break-inside: auto; }
           .category-header { break-after: avoid; }
           .item-card { break-inside: avoid; page-break-inside: avoid; }
           .ref-section { break-inside: avoid; page-break-inside: avoid; }
