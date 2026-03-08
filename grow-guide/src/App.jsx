@@ -257,7 +257,7 @@ function ScreenItemCard({ item, images }) {
   const d = DIFF[item.diff];
   const u = item.urdu;
   return (
-    <div className="screen-only" style={{ background: "#fff", borderRadius: 12, marginBottom: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden", border: "1px solid #eee", transition: "box-shadow 0.2s" }}>
+    <div className="screen-only" style={{ background: "#fff", borderRadius: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden", border: "1px solid #eee", transition: "box-shadow 0.2s", alignSelf: "start" }}>
       <div onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
         <ItemImage item={item} images={images} size={56} />
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -320,7 +320,7 @@ function TabBar({ activeTab, onTabChange, activeCategory, onCategoryChange }) {
   return (
     <div className="screen-only" style={{ position: "sticky", top: 0, zIndex: 100, background: "#fafaf8" }}>
       {/* Main tabs */}
-      <div style={{ display: "flex", borderBottom: "2px solid #e8e8e3", marginBottom: 0 }}>
+      <div style={{ display: "flex", borderBottom: "2px solid #e8e8e3", marginBottom: 0, maxWidth: 1400, margin: "0 auto" }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => onTabChange(t.id)} style={{
             flex: 1, padding: "10px 0", border: "none", background: "none", cursor: "pointer",
@@ -333,7 +333,7 @@ function TabBar({ activeTab, onTabChange, activeCategory, onCategoryChange }) {
       </div>
       {/* Category pills (scrollable) */}
       {activeTab === "guide" && (
-        <div ref={scrollRef} style={{ display: "flex", gap: 6, overflowX: "auto", padding: "8px 4px", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none" }}>
+        <div ref={scrollRef} style={{ display: "flex", gap: 6, overflowX: "auto", padding: "8px 16px", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none", maxWidth: 1400, margin: "0 auto" }}>
           {DATA.map((cat, i) => (
             <button key={cat.category} onClick={() => onCategoryChange(i)} style={{
               flexShrink: 0, padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer",
@@ -588,7 +588,7 @@ export default function GrowGuide() {
     : activeCat.items;
 
   return (
-    <div style={{ fontFamily: "'DM Sans', -apple-system, sans-serif", background: "#fafaf8", color: "#333", maxWidth: 850, margin: "0 auto" }}>
+    <div style={{ fontFamily: "'DM Sans', -apple-system, sans-serif", background: "#fafaf8", color: "#333", margin: "0 auto" }}>
       <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet" />
       <style>{`
         .screen-only { display: block; }
@@ -596,6 +596,10 @@ export default function GrowGuide() {
         * { box-sizing: border-box; }
         /* Hide scrollbar on pill nav */
         .screen-only::-webkit-scrollbar { display: none; }
+        /* Responsive grid for item cards on wide screens */
+        .items-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
+        @media (min-width: 768px) { .items-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (min-width: 1200px) { .items-grid { grid-template-columns: repeat(3, 1fr); } }
         @media print {
           body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           @page { margin: 0.4in 0.5in; size: letter; }
@@ -627,7 +631,7 @@ export default function GrowGuide() {
       <TabBar activeTab={activeTab} onTabChange={setActiveTab} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
 
       {/* Screen content */}
-      <div className="screen-only" style={{ padding: "4px 12px 80px" }}>
+      <div className="screen-only" style={{ padding: "4px 16px 80px", maxWidth: 1400, margin: "0 auto" }}>
         {activeTab === "guide" && (
           <>
             {/* Search */}
@@ -649,7 +653,9 @@ export default function GrowGuide() {
             {filteredItems.length === 0 && (
               <div style={{ textAlign: "center", padding: 40, color: "#bbb", fontSize: 14 }}>No items match "{search}"</div>
             )}
-            {filteredItems.map(item => <ScreenItemCard key={item.name} item={item} images={images} />)}
+            <div className="items-grid">
+              {filteredItems.map(item => <ScreenItemCard key={item.name} item={item} images={images} />)}
+            </div>
           </>
         )}
         {activeTab === "reference" && <QuickReference />}
@@ -657,7 +663,7 @@ export default function GrowGuide() {
 
       {/* ═══════ PRINT LAYOUT (hidden on screen, shown on print) ═══════ */}
       {/* Print Header */}
-      <div className="print-only" style={{ background: "linear-gradient(135deg, #2C3E2D, #4A6741)", color: "#fff", padding: "18px 22px", borderRadius: 8, marginBottom: 12 }}>
+      <div className="print-only" style={{ maxWidth: 850, margin: "0 auto", background: "linear-gradient(135deg, #2C3E2D, #4A6741)", color: "#fff", padding: "18px 22px", borderRadius: 8, marginBottom: 12 }}>
         <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", opacity: 0.7, marginBottom: 4 }}>New Milford, CT · USDA Zone 6b</div>
         <div style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 32, fontWeight: 700, fontStyle: "italic", lineHeight: 1.1 }}>What You Can Grow</div>
         <div style={{ fontSize: 10, opacity: 0.75, marginTop: 6 }}>
