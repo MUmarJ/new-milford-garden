@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const WIKI_ITEMS = {
   "Apples": "Apple", "Pears (European)": "Pear", "Pears (Asian)": "Asian_pear",
@@ -192,7 +192,6 @@ const DATA = [
 
 const DIFF = { 1: { label: "Easy", color: "#27AE60", dots: "●○○○" }, 2: { label: "Moderate", color: "#F39C12", dots: "●●○○" }, 3: { label: "Challenging", color: "#E67E22", dots: "●●●○" }, 4: { label: "Gamble", color: "#C0392B", dots: "●●●●" } };
 
-// Map items that share a wiki key to their unique fallback key
 const UNIQUE_IMAGE_KEY = {
   "Nectarines": "Nectarine",
   "Raspberries (Fall-bearing)": "Raspberry_fall",
@@ -202,17 +201,30 @@ const UNIQUE_IMAGE_KEY = {
 
 const ur = { direction: "rtl", textAlign: "right", fontFamily: "'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif", color: "#7A6B5A" };
 
-function ItemCard({ item, images }) {
+function getImageUrl(item, images) {
+  const uniqueKey = UNIQUE_IMAGE_KEY[item.name];
+  const wikiKey = WIKI_ITEMS[item.name];
+  if (uniqueKey) return FALLBACK_IMAGES[uniqueKey] || images[uniqueKey] || null;
+  return wikiKey ? (images[wikiKey] || null) : null;
+}
+
+function ItemImage({ item, images, size = 72 }) {
+  const imgUrl = getImageUrl(item, images);
+  return (
+    <div style={{ width: size, height: size, borderRadius: 10, overflow: "hidden", background: "#f0ede8", flexShrink: 0 }}>
+      {imgUrl ? <img src={imgUrl} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} loading="lazy" />
+        : <div style={{ width: "100%", height: "100%", background: "#e8e4de", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size > 60 ? 13 : 10, color: "#aaa", fontFamily: "'DM Sans', sans-serif", textAlign: "center", padding: 4, lineHeight: 1.2 }}>{item.name.split(/[\s/]/)[0]}</div>}
+    </div>
+  );
+}
+
+/* ─── Print-only card (compact, same as before) ─── */
+function PrintItemCard({ item, images }) {
   const d = DIFF[item.diff];
   const u = item.urdu;
-  const wikiKey = WIKI_ITEMS[item.name];
-  const uniqueKey = UNIQUE_IMAGE_KEY[item.name];
-  const imgUrl = uniqueKey ? (FALLBACK_IMAGES[uniqueKey] || images[uniqueKey]) : (wikiKey ? images[wikiKey] : null);
   return (
-    <div className="item-card" style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: 10, padding: "10px 8px", borderBottom: "1px solid #e8e8e3", pageBreakInside: "avoid", breakInside: "avoid" }}>
-      <div style={{ width: 72, height: 72, borderRadius: 10, overflow: "hidden", background: "#f0ede8", flexShrink: 0, alignSelf: "start" }}>
-        {imgUrl ? <img src={imgUrl} alt={item.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ width: "100%", height: "100%", background: "#e8e4de", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#aaa", fontFamily: "'DM Sans', sans-serif", textAlign: "center", padding: 4, lineHeight: 1.2 }}>{item.name.split(/[\s/]/)[0]}</div>}
-      </div>
+    <div className="item-card print-only" style={{ display: "grid", gridTemplateColumns: "72px 1fr", gap: 10, padding: "10px 8px", borderBottom: "1px solid #e8e8e3", pageBreakInside: "avoid", breakInside: "avoid" }}>
+      <ItemImage item={item} images={images} />
       <div style={{ minWidth: 0 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 3 }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
@@ -228,13 +240,58 @@ function ItemCard({ item, images }) {
         <div style={{ fontSize: 10, lineHeight: 1.4, marginBottom: 2 }}>
           <span style={{ color: "#1E6B3A", fontWeight: 700, fontSize: 9, textTransform: "uppercase", letterSpacing: 0.3 }}>Varieties: </span>{item.varieties}
         </div>
-        <div style={{ fontSize: 9, color: "#999", fontStyle: "italic", lineHeight: 1.35, marginBottom: 0 }}>{item.notes}</div>
+        <div style={{ fontSize: 9, color: "#999", fontStyle: "italic", lineHeight: 1.35 }}>{item.notes}</div>
         {u && <div style={{ borderTop: "1px dashed #e0dcd6", marginTop: 6, paddingTop: 4 }}>
           <div style={{ ...ur, fontSize: 10, lineHeight: 1.6, marginBottom: 2 }}>{u.desc}</div>
           <div style={{ ...ur, fontSize: 9, lineHeight: 1.6, marginBottom: 2 }}><span style={{ color: "#1E6B3A", fontWeight: 700 }}>اقسام: </span>{u.varieties}</div>
           <div style={{ ...ur, fontSize: 9, lineHeight: 1.6, color: "#9B8E7E", fontStyle: "italic" }}>{u.notes}</div>
         </div>}
       </div>
+    </div>
+  );
+}
+
+/* ─── Interactive screen card (expandable) ─── */
+function ScreenItemCard({ item, images }) {
+  const [open, setOpen] = useState(false);
+  const d = DIFF[item.diff];
+  const u = item.urdu;
+  return (
+    <div className="screen-only" style={{ background: "#fff", borderRadius: 12, marginBottom: 10, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", overflow: "hidden", border: "1px solid #eee", transition: "box-shadow 0.2s" }}>
+      <div onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 12, padding: 12, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>
+        <ItemImage item={item} images={images} size={56} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
+            <span style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 16, fontWeight: 700, color: "#2C3E2D" }}>{item.name}</span>
+            {u && <span style={{ ...ur, fontSize: 13, fontWeight: 700, lineHeight: 1.4, opacity: 0.8 }}>{u.name}</span>}
+          </div>
+          <div style={{ fontSize: 12, color: "#888", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: open ? "none" : 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{item.desc}</div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: d.color, whiteSpace: "nowrap" }}>{d.dots}</span>
+          <span style={{ fontSize: 18, color: "#ccc", transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0)" }}>&#9662;</span>
+        </div>
+      </div>
+      {open && (
+        <div style={{ padding: "0 14px 14px", borderTop: "1px solid #f0f0f0" }}>
+          <div style={{ paddingTop: 10 }}>
+            <div style={{ fontSize: 13, color: "#555", lineHeight: 1.5, marginBottom: 8 }}>{item.desc}</div>
+            <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 6 }}>
+              <span style={{ color: "#1E6B3A", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: 0.3 }}>Varieties: </span>
+              {item.varieties}
+            </div>
+            <div style={{ fontSize: 12, color: "#888", fontStyle: "italic", lineHeight: 1.4, marginBottom: 6 }}>{item.notes}</div>
+            <div style={{ display: "inline-flex", gap: 6, marginBottom: 4 }}>
+              <span style={{ fontSize: 10, fontWeight: 600, color: d.color, background: `${d.color}15`, padding: "2px 8px", borderRadius: 20 }}>{d.dots} {d.label}</span>
+            </div>
+          </div>
+          {u && <div style={{ borderTop: "1px dashed #e0dcd6", marginTop: 8, paddingTop: 8 }}>
+            <div style={{ ...ur, fontSize: 13, lineHeight: 1.7, marginBottom: 4 }}>{u.desc}</div>
+            <div style={{ ...ur, fontSize: 12, lineHeight: 1.7, marginBottom: 4 }}><span style={{ color: "#1E6B3A", fontWeight: 700 }}>اقسام: </span>{u.varieties}</div>
+            <div style={{ ...ur, fontSize: 12, lineHeight: 1.7, color: "#9B8E7E", fontStyle: "italic" }}>{u.notes}</div>
+          </div>}
+        </div>
+      )}
     </div>
   );
 }
@@ -252,23 +309,265 @@ function RefItem({ text }) {
   return <div style={{ fontSize: 10, color: "#444", lineHeight: 1.5, paddingLeft: 14, position: "relative", marginBottom: 3 }}><span style={{ position: "absolute", left: 0, color: "#1E6B3A", fontWeight: 700 }}>•</span><span dangerouslySetInnerHTML={{ __html: text }} /></div>;
 }
 
+/* ─── Tab navigation for screen ─── */
+const TABS = [
+  { id: "guide", label: "Guide" },
+  { id: "reference", label: "Reference" },
+];
+
+function TabBar({ activeTab, onTabChange, activeCategory, onCategoryChange }) {
+  const scrollRef = useRef(null);
+  return (
+    <div className="screen-only" style={{ position: "sticky", top: 0, zIndex: 100, background: "#fafaf8" }}>
+      {/* Main tabs */}
+      <div style={{ display: "flex", borderBottom: "2px solid #e8e8e3", marginBottom: 0 }}>
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => onTabChange(t.id)} style={{
+            flex: 1, padding: "10px 0", border: "none", background: "none", cursor: "pointer",
+            fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: activeTab === t.id ? 700 : 500,
+            color: activeTab === t.id ? "#2C3E2D" : "#999",
+            borderBottom: activeTab === t.id ? "2px solid #2C3E2D" : "2px solid transparent",
+            marginBottom: -2, transition: "all 0.15s"
+          }}>{t.label}</button>
+        ))}
+      </div>
+      {/* Category pills (scrollable) */}
+      {activeTab === "guide" && (
+        <div ref={scrollRef} style={{ display: "flex", gap: 6, overflowX: "auto", padding: "8px 4px", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          {DATA.map((cat, i) => (
+            <button key={cat.category} onClick={() => onCategoryChange(i)} style={{
+              flexShrink: 0, padding: "6px 14px", borderRadius: 20, border: "none", cursor: "pointer",
+              fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", transition: "all 0.15s",
+              fontFamily: "'DM Sans', sans-serif",
+              background: activeCategory === i ? cat.color : "#f0ede8",
+              color: activeCategory === i ? "#fff" : "#666",
+            }}>{cat.icon} {cat.category}</button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Quick Reference sections ─── */
+function QuickReference() {
+  const tbl = { fontSize: 12, borderCollapse: "collapse", width: "100%" };
+  const th = { background: "#e8e8e3", textAlign: "left", padding: "8px 12px", fontWeight: 600, fontSize: 12 };
+  const td = { padding: "6px 12px", borderBottom: "1px solid #eee", fontSize: 12 };
+  const [openSections, setOpenSections] = useState({ dates: true });
+  const toggle = (key) => setOpenSections(s => ({ ...s, [key]: !s[key] }));
+
+  const sections = [
+    { key: "dates", title: "Key Dates for New Milford, CT", content: (
+      <table style={tbl}>
+        <thead><tr><th style={th}>Event</th><th style={th}>Date</th></tr></thead>
+        <tbody>
+          {[
+            ["Last spring frost (average)", "April 26"],
+            ["Safe transplant date (tender crops)", "May 10–15"],
+            ["Latest recorded spring frost", "May 18 (2023)"],
+            ["Start warm crops indoors", "Late March – Early April"],
+            ["Direct sow cool crops outdoors", "Mid-April (when soil workable)"],
+            ["Transplant tender crops outdoors", "After May 15"],
+            ["Sow fall crops", "Late July – August"],
+            ["First fall frost (average)", "October 24"],
+            ["Conservative first frost (plan for)", "October 10–15"],
+            ["Plant garlic", "Mid-October"],
+            ["Frost-free growing season", "~150–160 days"],
+            ["AHS Heat Zone", "4–5 (15–30 days above 86°F)"],
+          ].map(([a, b], i) => <tr key={i} style={{ background: i % 2 ? "#fafaf8" : "#fff" }}><td style={td}>{a}</td><td style={td}>{b}</td></tr>)}
+        </tbody>
+      </table>
+    )},
+    { key: "soil", title: "Soil & Site", content: (
+      <div style={{ fontSize: 13, color: "#444", lineHeight: 1.6 }}>
+        {[
+          "CT soils typically <b>pH 4.8–5.5</b>. Most vegetables need pH 6.0–6.8 — liming required.",
+          "<b>Exception:</b> blueberries, potatoes, rhododendrons PREFER CT's natural acidity.",
+          "New Milford's <b>marble/limestone bedrock</b> may buffer soil toward neutral — confirm with soil test.",
+          "<b>UConn Soil Lab:</b> $12 test at soiltesting.cahnr.uconn.edu. Test every 3–5 years.",
+          "<b>Raised beds</b> with topsoil-compost mix bypass rocky glacial till — recommended by UConn Extension.",
+          "Apply <b>dolomitic limestone</b> in fall (5–7 lbs per 100 sq ft max).",
+          "<b>Housatonic River valley</b> provides fertile alluvial soils and slight thermal moderation.",
+          "Annual precipitation ~<b>49 inches</b>, well-distributed — ample but humid enough for fungal diseases.",
+        ].map((t, i) => <div key={i} style={{ marginBottom: 6, paddingLeft: 16, position: "relative" }}><span style={{ position: "absolute", left: 0, color: "#1E6B3A", fontWeight: 700 }}>•</span><span dangerouslySetInnerHTML={{ __html: t }} /></div>)}
+      </div>
+    )},
+    { key: "challenges", title: "Top Challenges & Solutions", content: (
+      <div style={{ fontSize: 13, color: "#444", lineHeight: 1.6 }}>
+        {[
+          "<b>Deer (#1 threat):</b> 8-ft fence is the only reliable solution. Solid 6-ft stockade fences also work.",
+          "<b>Japanese beetles:</b> Hand-pick into soapy water ~7 PM. Use beneficial nematodes, NOT milky spore.",
+          "<b>Spotted lanternfly:</b> Now in Litchfield County. Kill on sight. Scrape egg masses. Remove tree-of-heaven.",
+          "<b>Squash vine borers:</b> Row covers until flowering. <b>Butternut squash</b> and <b>Tromboncino</b> are resistant.",
+          "<b>Late blight:</b> Can destroy tomatoes/potatoes in a week. Choose resistant varieties.",
+          "<b>Apple scab:</b> Plant resistant varieties (Liberty, Enterprise, GoldRush).",
+          "<b>Late spring frosts (to May 18):</b> Keep row covers ready. Choose late-blooming cultivars.",
+          "<b>Cucumber beetles:</b> Transmit bacterial wilt. Row covers until flowering.",
+        ].map((t, i) => <div key={i} style={{ marginBottom: 6, paddingLeft: 16, position: "relative" }}><span style={{ position: "absolute", left: 0, color: "#1E6B3A", fontWeight: 700 }}>•</span><span dangerouslySetInnerHTML={{ __html: t }} /></div>)}
+      </div>
+    )},
+    { key: "season", title: "Season Extension", content: (
+      <div style={{ fontSize: 13, color: "#444", lineHeight: 1.6 }}>
+        {[
+          "<b>Floating row covers</b> add 2–5°F protection.",
+          "<b>Low tunnels/cold frames</b> enable harvest into December or through winter.",
+          "<b>High tunnels</b> create a 200+ day season. USDA EQIP program provides assistance.",
+          "<b>Black plastic mulch</b> warms soil 5–10°F earlier — mandatory for melons, sweet potatoes, eggplant.",
+          "<b>Water-filled cloches</b> protect transplants 2–3 weeks before safe date.",
+        ].map((t, i) => <div key={i} style={{ marginBottom: 6, paddingLeft: 16, position: "relative" }}><span style={{ position: "absolute", left: 0, color: "#1E6B3A", fontWeight: 700 }}>•</span><span dangerouslySetInnerHTML={{ __html: t }} /></div>)}
+      </div>
+    )},
+    { key: "resources", title: "Essential CT Resources", content: (
+      <div style={{ fontSize: 13, color: "#444", lineHeight: 1.6 }}>
+        {[
+          "<b>UConn Home & Garden Education Center:</b> homegarden.cahnr.uconn.edu — Phone: 877-486-6271",
+          "<b>UConn Soil Lab:</b> soiltesting.cahnr.uconn.edu — $12",
+          "<b>CT Agricultural Experiment Station:</b> portal.ct.gov/caes",
+          "<b>NE Vegetable Management Guide:</b> nevegetable.org",
+          "<b>Seed companies:</b> Fedco Seeds, Johnny's Selected Seeds",
+          "<b>Berry plants:</b> Nourse Farms",
+          "<b>CT nurseries:</b> Cricket Hill Garden (Thomaston, CT)",
+        ].map((t, i) => <div key={i} style={{ marginBottom: 6, paddingLeft: 16, position: "relative" }}><span style={{ position: "absolute", left: 0, color: "#1E6B3A", fontWeight: 700 }}>•</span><span dangerouslySetInnerHTML={{ __html: t }} /></div>)}
+      </div>
+    )},
+    { key: "tips", title: "CT Grower Tips", content: (
+      <div style={{ fontSize: 13, color: "#444", lineHeight: 1.6 }}>
+        {[
+          "Litchfield County orchardist: <b>Asian pears performed spectacularly</b>; sweet cherries failed.",
+          "<b>Apricots were a near-total loss</b> across western CT.",
+          "One CT family has grown <b>in-ground figs for 90+ years</b> with winter wrapping.",
+          "<b>'Between the deer and the Japanese beetles, I don't know who's worse.'</b>",
+          "<b>Sungold cherry tomato</b> is the #1 recommended variety across CT forums.",
+        ].map((t, i) => <div key={i} style={{ marginBottom: 6, paddingLeft: 16, position: "relative" }}><span style={{ position: "absolute", left: 0, color: "#1E6B3A", fontWeight: 700 }}>•</span><span dangerouslySetInnerHTML={{ __html: t }} /></div>)}
+      </div>
+    )},
+  ];
+
+  return (
+    <div style={{ padding: "8px 0" }}>
+      {sections.map(s => (
+        <div key={s.key} style={{ background: "#fff", borderRadius: 12, marginBottom: 10, border: "1px solid #eee", overflow: "hidden" }}>
+          <div onClick={() => toggle(s.key)} style={{ padding: "12px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", WebkitTapHighlightColor: "transparent" }}>
+            <span style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 16, fontWeight: 700, color: "#2C3E2D" }}>{s.title}</span>
+            <span style={{ fontSize: 18, color: "#ccc", transition: "transform 0.2s", transform: openSections[s.key] ? "rotate(180deg)" : "rotate(0)" }}>&#9662;</span>
+          </div>
+          {openSections[s.key] && <div style={{ padding: "0 16px 14px" }}>{s.content}</div>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Print-only Quick Reference (unchanged format) ─── */
+function PrintQuickReference() {
+  const tbl = { fontSize: 10, borderCollapse: "collapse", width: "100%" };
+  const th = { background: "#e8e8e3", textAlign: "left", padding: "5px 10px", fontWeight: 600, fontSize: 10 };
+  const td = { padding: "4px 10px", borderBottom: "1px solid #eee", fontSize: 10 };
+  return (
+    <div className="page-break print-only" style={{ marginTop: 32 }}>
+      <div style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 24, fontWeight: 700, color: "#2C3E2D", marginBottom: 16 }}>Quick Reference</div>
+      <RefSection title="Key Dates for New Milford, CT">
+        <table style={tbl}>
+          <thead><tr><th style={th}>Event</th><th style={th}>Date</th></tr></thead>
+          <tbody>
+            {[
+              ["Last spring frost (average)", "April 26"],
+              ["Safe transplant date (tender crops)", "May 10–15"],
+              ["Latest recorded spring frost", "May 18 (2023)"],
+              ["Start warm crops indoors", "Late March – Early April"],
+              ["Direct sow cool crops outdoors", "Mid-April (when soil workable)"],
+              ["Transplant tender crops outdoors", "After May 15"],
+              ["Sow fall crops", "Late July – August"],
+              ["First fall frost (average)", "October 24"],
+              ["Conservative first frost (plan for)", "October 10–15"],
+              ["Plant garlic", "Mid-October"],
+              ["Frost-free growing season", "~150–160 days"],
+              ["AHS Heat Zone", "4–5 (15–30 days above 86°F)"],
+            ].map(([a, b], i) => <tr key={i} style={{ background: i % 2 ? "#fafaf8" : "#fff" }}><td style={td}>{a}</td><td style={td}>{b}</td></tr>)}
+          </tbody>
+        </table>
+      </RefSection>
+      <RefSection title="Soil & Site — New Milford Specifics">
+        <RefItem text="CT soils typically <b>pH 4.8–5.5</b>. Most vegetables need pH 6.0–6.8 — liming required." />
+        <RefItem text="<b>Exception:</b> blueberries, potatoes, rhododendrons PREFER CT's natural acidity — no amendment needed." />
+        <RefItem text="New Milford's <b>marble/limestone bedrock</b> may naturally buffer soil toward neutral in some locations — a significant advantage worth confirming with a soil test." />
+        <RefItem text="<b>UConn Soil Lab:</b> $12 test at soiltesting.cahnr.uconn.edu. Test every 3–5 years." />
+        <RefItem text="<b>Raised beds</b> with quality topsoil-compost mix bypass rocky glacial till entirely — strongly recommended by UConn Extension." />
+        <RefItem text="Apply <b>dolomitic limestone</b> in fall (5–7 lbs per 100 sq ft max). Supplies calcium and magnesium." />
+        <RefItem text="<b>Housatonic River valley</b> provides fertile alluvial soils and slight thermal moderation. Valley bottoms can be frost pockets where cold air pools; south-facing slopes a few feet above are warmer." />
+        <RefItem text="Annual precipitation ~<b>49 inches</b>, well-distributed — ample for most crops but humid enough to fuel fungal diseases." />
+      </RefSection>
+      <RefSection title="Top Challenges & Solutions">
+        <RefItem text="<b>Deer (#1 threat):</b> 8-ft fence is the only reliable solution. Repellents require constant rotation and reapplication. Solid 6-ft stockade fences work because deer won't jump what they can't see through." />
+        <RefItem text="<b>Japanese beetles (peak Jun–Aug):</b> Hand-pick into soapy water ~7 PM (most effective). Use beneficial nematodes, NOT milky spore (doesn't work in NE cool soils). Avoid pheromone traps near garden — they attract more beetles." />
+        <RefItem text="<b>Spotted lanternfly:</b> Now established in Litchfield County with CAES quarantine orders. Kill on sight. Scrape egg masses (Sept–May). Remove tree-of-heaven (preferred host). Feeds on grapes, hops, fruit trees." />
+        <RefItem text="<b>Squash vine borers:</b> Row covers from planting until flowering. Late planting (July) dodges June egg-laying. <b>Butternut squash</b> (C. moschata) and <b>Tromboncino</b> are naturally resistant/immune." />
+        <RefItem text="<b>Late blight (tomatoes/potatoes):</b> Can destroy plants within a week. Choose resistant varieties (Mountain Merit, Kennebec). Monitor USAblight.org for regional outbreaks." />
+        <RefItem text="<b>Apple scab:</b> Controlled most effectively by planting resistant varieties (Liberty, Enterprise, GoldRush). CT's humidity makes it nearly inevitable on susceptible varieties." />
+        <RefItem text="<b>Late spring frosts (as late as May 18):</b> Keep row covers and old blankets ready. Choose late-blooming fruit cultivars (Contender peach, Duke blueberry, Goldcot apricot). Plant stone fruit on north-facing slopes." />
+        <RefItem text="<b>Cucumber beetles:</b> Transmit bacterial wilt, devastating to cucumbers and muskmelons. Row covers until flowering are the primary defense." />
+      </RefSection>
+      <RefSection title="Season Extension">
+        <RefItem text="<b>Floating row covers</b> add 2–5°F protection. Essential for early transplants and late fall harvests." />
+        <RefItem text="<b>Low tunnels/cold frames</b> enable harvest of hardy greens (kale, spinach, tatsoi) into December or even through winter." />
+        <RefItem text="<b>High tunnels</b> can create a 200+ day effective season. USDA NRCS EQIP program provides financial assistance." />
+        <RefItem text="<b>Black plastic mulch</b> warms soil 5–10°F earlier — mandatory for melons, sweet potatoes, eggplant, peppers in CT." />
+        <RefItem text="<b>Water-filled cloches</b> (Wall O' Water) protect individual transplants from frosts 2–3 weeks before safe date." />
+      </RefSection>
+      <RefSection title="Essential CT Resources">
+        <RefItem text="<b>UConn Home & Garden Education Center:</b> homegarden.cahnr.uconn.edu — staffed horticulturists, diagnostic services, fact sheets. Phone: 877-486-6271" />
+        <RefItem text="<b>UConn Soil Nutrient Analysis Lab:</b> soiltesting.cahnr.uconn.edu — standard test $12" />
+        <RefItem text="<b>CT Agricultural Experiment Station:</b> portal.ct.gov/caes — disease diagnostics, spray guides, pest fact sheets" />
+        <RefItem text="<b>New England Vegetable Management Guide:</b> nevegetable.org — premier crop-by-crop reference for the region" />
+        <RefItem text="<b>Seed companies (NE-focused):</b> Fedco Seeds (fedcoseeds.com), Johnny's Selected Seeds (johnnyseeds.com) — specialize in short-season, cold-hardy varieties" />
+        <RefItem text="<b>Berry plants:</b> Nourse Farms — first choice for strawberries, raspberries, blackberries, currants" />
+        <RefItem text="<b>CT nurseries:</b> Cricket Hill Garden (Thomaston, CT) — unusual plants including medlar, che fruit, tree peonies" />
+      </RefSection>
+      <RefSection title="CT Grower Tips (from Reddit, Permies, OurFigs forums)">
+        <RefItem text="A Litchfield County orchardist with 41 fruit trees: <b>Asian pears performed spectacularly</b> while European pears refused to produce and sweet cherries failed due to humidity." />
+        <RefItem text="<b>Apricots were a near-total loss</b> — multiple growers confirm this across western CT. Don't plant unless you enjoy the gamble." />
+        <RefItem text="One CT family has grown <b>in-ground fig trees for 90+ years</b> using winter wrapping — another harvests ~1,300 figs/year from 3 trees." />
+        <RefItem text="Universally cited: <b>'Between the deer and the Japanese beetles, I don't know who's worse.'</b> Invest in fencing BEFORE planting." />
+        <RefItem text="A Thomaston food forest grower reports success with apples, Illinois Everbearing mulberry, medlar, cornelian cherry, garlic, and Asian pears on sandy-loam soil." />
+        <RefItem text="<b>Sungold cherry tomato</b> is the single most recommended variety across all CT gardening forums." />
+      </RefSection>
+    </div>
+  );
+}
+
 export default function GrowGuide() {
   const [images, setImages] = useState({});
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(0);
+  const [activeTab, setActiveTab] = useState("guide");
+  const [activeCategory, setActiveCategory] = useState(0);
+  const [search, setSearch] = useState("");
   const allWikiKeys = [...new Set(Object.values(WIKI_ITEMS))];
   const total = allWikiKeys.length;
 
   useEffect(() => {
     let m = true;
     (async () => {
+      try {
+        const res = await fetch(`${import.meta.env.BASE_URL}images/manifest.json`);
+        if (res.ok) {
+          const manifest = await res.json();
+          const mapped = {};
+          for (const [key, path] of Object.entries(manifest)) {
+            mapped[key] = `${import.meta.env.BASE_URL}${path}`;
+          }
+          if (m) { setImages(mapped); setLoading(false); }
+          return;
+        }
+      } catch {}
+      // Fallback: fetch from Wikipedia API
       const r = {};
       for (let i = 0; i < allWikiKeys.length; i += 10) {
         const batch = allWikiKeys.slice(i, i + 10);
         await Promise.all(batch.map(async (k) => { try { const d = await (await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(k)}`)).json(); if (d.thumbnail?.source) r[k] = d.thumbnail.source.replace(/\/\d+px-/, "/200px-"); } catch {} }));
         if (m) setLoaded(Math.min(i + 10, allWikiKeys.length));
       }
-      // Apply fallback images for missing/broken thumbnails
       for (const [key, url] of Object.entries(FALLBACK_IMAGES)) {
         if (!r[key]) r[key] = url;
       }
@@ -278,18 +577,30 @@ export default function GrowGuide() {
   }, []);
 
   const totalItems = DATA.reduce((s, c) => s + c.items.length, 0);
-  const tbl = { fontSize: 10, borderCollapse: "collapse", width: "100%" };
-  const th = { background: "#e8e8e3", textAlign: "left", padding: "5px 10px", fontWeight: 600, fontSize: 10 };
-  const td = { padding: "4px 10px", borderBottom: "1px solid #eee", fontSize: 10 };
+  const activeCat = DATA[activeCategory];
+
+  // Filter items by search
+  const filteredItems = search.trim()
+    ? activeCat.items.filter(item => {
+        const q = search.toLowerCase();
+        return item.name.toLowerCase().includes(q) || item.varieties.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q);
+      })
+    : activeCat.items;
 
   return (
-    <div style={{ fontFamily: "'DM Sans', -apple-system, sans-serif", background: "#fafaf8", color: "#333", maxWidth: 850, margin: "0 auto", padding: "12px 16px" }}>
+    <div style={{ fontFamily: "'DM Sans', -apple-system, sans-serif", background: "#fafaf8", color: "#333", maxWidth: 850, margin: "0 auto" }}>
       <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet" />
       <style>{`
+        .screen-only { display: block; }
+        .print-only { display: none; }
+        * { box-sizing: border-box; }
+        /* Hide scrollbar on pill nav */
+        .screen-only::-webkit-scrollbar { display: none; }
         @media print {
           body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           @page { margin: 0.4in 0.5in; size: letter; }
-          .no-print { display: none !important; }
+          .screen-only, .no-print { display: none !important; }
+          .print-only { display: block !important; }
           .page-break { page-break-before: always; break-before: page; }
           .category-section { break-inside: auto; }
           .category-header { break-after: avoid; }
@@ -302,119 +613,87 @@ export default function GrowGuide() {
         }
       `}</style>
 
-      {/* Header */}
-      <div style={{ background: "linear-gradient(135deg, #2C3E2D, #4A6741)", color: "#fff", padding: "18px 22px", borderRadius: 8, marginBottom: 12 }}>
+      {/* ═══════ SCREEN UI ═══════ */}
+      {/* Screen Header */}
+      <div className="screen-only" style={{ background: "linear-gradient(135deg, #2C3E2D, #4A6741)", color: "#fff", padding: "20px 18px 14px", borderRadius: "0 0 16px 16px" }}>
+        <div style={{ fontSize: 10, letterSpacing: 2, textTransform: "uppercase", opacity: 0.6, marginBottom: 4 }}>New Milford, CT · USDA Zone 6b</div>
+        <div style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 28, fontWeight: 700, fontStyle: "italic", lineHeight: 1.1 }}>What You Can Grow</div>
+        <div style={{ fontSize: 11, opacity: 0.7, marginTop: 6 }}>
+          {totalItems} varieties across {DATA.length} categories · ~150-day season
+          {loading && <span style={{ marginLeft: 8, opacity: 0.6 }}>Loading images ({loaded}/{total})...</span>}
+        </div>
+      </div>
+
+      <TabBar activeTab={activeTab} onTabChange={setActiveTab} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
+
+      {/* Screen content */}
+      <div className="screen-only" style={{ padding: "4px 12px 80px" }}>
+        {activeTab === "guide" && (
+          <>
+            {/* Search */}
+            <div style={{ position: "relative", marginBottom: 10, marginTop: 4 }}>
+              <input
+                type="text" placeholder={`Search ${activeCat.category}...`} value={search} onChange={e => setSearch(e.target.value)}
+                style={{ width: "100%", padding: "10px 14px 10px 36px", borderRadius: 10, border: "1px solid #e0dcd6", fontSize: 14, fontFamily: "'DM Sans', sans-serif", background: "#fff", outline: "none" }}
+              />
+              <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 16, color: "#bbb" }}>&#128269;</span>
+              {search && <button onClick={() => setSearch("")} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", border: "none", background: "none", fontSize: 18, color: "#bbb", cursor: "pointer", padding: 4 }}>&times;</button>}
+            </div>
+
+            {/* Category header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 20, fontWeight: 700, color: activeCat.color }}>{activeCat.icon} {activeCat.category}</div>
+              <span style={{ fontSize: 12, color: "#999", fontWeight: 600 }}>{filteredItems.length} {filteredItems.length === 1 ? "item" : "items"}</span>
+            </div>
+
+            {filteredItems.length === 0 && (
+              <div style={{ textAlign: "center", padding: 40, color: "#bbb", fontSize: 14 }}>No items match "{search}"</div>
+            )}
+            {filteredItems.map(item => <ScreenItemCard key={item.name} item={item} images={images} />)}
+          </>
+        )}
+        {activeTab === "reference" && <QuickReference />}
+      </div>
+
+      {/* ═══════ PRINT LAYOUT (hidden on screen, shown on print) ═══════ */}
+      {/* Print Header */}
+      <div className="print-only" style={{ background: "linear-gradient(135deg, #2C3E2D, #4A6741)", color: "#fff", padding: "18px 22px", borderRadius: 8, marginBottom: 12 }}>
         <div style={{ fontSize: 9, letterSpacing: 2, textTransform: "uppercase", opacity: 0.7, marginBottom: 4 }}>New Milford, CT · USDA Zone 6b</div>
         <div style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 32, fontWeight: 700, fontStyle: "italic", lineHeight: 1.1 }}>What You Can Grow</div>
         <div style={{ fontSize: 10, opacity: 0.75, marginTop: 6 }}>
           {totalItems} varieties across {DATA.length} categories · ~150-day growing season · Last frost ≈ Apr 26 · First frost ≈ Oct 24
-          {loading && <span className="no-print" style={{ marginLeft: 12, opacity: 0.6 }}>📷 Loading images ({loaded}/{total})...</span>}
         </div>
       </div>
 
-      {/* Legend */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", fontSize: 9, color: "#666", padding: "8px 12px", border: "1px solid #e8e8e3", borderRadius: 6, marginBottom: 12, background: "#fefefe" }}>
+      {/* Print Legend */}
+      <div className="print-only" style={{ display: "flex", flexWrap: "wrap", gap: "6px 16px", fontSize: 9, color: "#666", padding: "8px 12px", border: "1px solid #e8e8e3", borderRadius: 6, marginBottom: 12, background: "#fefefe" }}>
         <span><b>Difficulty:</b></span>
         {Object.entries(DIFF).map(([k, v]) => <span key={k} style={{ color: v.color }}>{v.dots} {v.label}</span>)}
         <span style={{ marginLeft: "auto" }}><b>Checkboxes:</b> ☐ Researched · ☐ Acquired · ☐ Planted · ☐ Harvested</span>
       </div>
 
-      {/* Categories */}
+      {/* Print Categories */}
       {DATA.map((cat) => (
-        <div key={cat.category} className="category-section" style={{ marginBottom: 16 }}>
+        <div key={cat.category} className="category-section print-only" style={{ marginBottom: 16 }}>
           <div className="category-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: "6px 6px 0 0", background: cat.bg, color: cat.color, borderBottom: `3px solid ${cat.color}` }}>
             <div style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 18, fontWeight: 700 }}>{cat.icon} {cat.category}</div>
             <div style={{ fontSize: 10, fontWeight: 600, opacity: 0.8 }}>{cat.items.length} varieties</div>
           </div>
-          {cat.items.map((item) => <ItemCard key={item.name} item={item} images={images} />)}
+          {cat.items.map((item) => <PrintItemCard key={item.name} item={item} images={images} />)}
         </div>
       ))}
 
-      {/* ═══════ QUICK REFERENCE ═══════ */}
-      <div className="page-break" style={{ marginTop: 32 }}>
-        <div style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 24, fontWeight: 700, color: "#2C3E2D", marginBottom: 16 }}>Quick Reference</div>
+      <PrintQuickReference />
 
-        <RefSection title="Key Dates for New Milford, CT">
-          <table style={tbl}>
-            <thead><tr><th style={th}>Event</th><th style={th}>Date</th></tr></thead>
-            <tbody>
-              {[
-                ["Last spring frost (average)", "April 26"],
-                ["Safe transplant date (tender crops)", "May 10–15"],
-                ["Latest recorded spring frost", "May 18 (2023)"],
-                ["Start warm crops indoors", "Late March – Early April"],
-                ["Direct sow cool crops outdoors", "Mid-April (when soil workable)"],
-                ["Transplant tender crops outdoors", "After May 15"],
-                ["Sow fall crops", "Late July – August"],
-                ["First fall frost (average)", "October 24"],
-                ["Conservative first frost (plan for)", "October 10–15"],
-                ["Plant garlic", "Mid-October"],
-                ["Frost-free growing season", "~150–160 days"],
-                ["AHS Heat Zone", "4–5 (15–30 days above 86°F)"],
-              ].map(([a, b], i) => <tr key={i} style={{ background: i % 2 ? "#fafaf8" : "#fff" }}><td style={td}>{a}</td><td style={td}>{b}</td></tr>)}
-            </tbody>
-          </table>
-        </RefSection>
-
-        <RefSection title="Soil & Site — New Milford Specifics">
-          <RefItem text="CT soils typically <b>pH 4.8–5.5</b>. Most vegetables need pH 6.0–6.8 — liming required." />
-          <RefItem text="<b>Exception:</b> blueberries, potatoes, rhododendrons PREFER CT's natural acidity — no amendment needed." />
-          <RefItem text="New Milford's <b>marble/limestone bedrock</b> may naturally buffer soil toward neutral in some locations — a significant advantage worth confirming with a soil test." />
-          <RefItem text="<b>UConn Soil Lab:</b> $12 test at soiltesting.cahnr.uconn.edu. Test every 3–5 years." />
-          <RefItem text="<b>Raised beds</b> with quality topsoil-compost mix bypass rocky glacial till entirely — strongly recommended by UConn Extension." />
-          <RefItem text="Apply <b>dolomitic limestone</b> in fall (5–7 lbs per 100 sq ft max). Supplies calcium and magnesium." />
-          <RefItem text="<b>Housatonic River valley</b> provides fertile alluvial soils and slight thermal moderation. Valley bottoms can be frost pockets where cold air pools; south-facing slopes a few feet above are warmer." />
-          <RefItem text="Annual precipitation ~<b>49 inches</b>, well-distributed — ample for most crops but humid enough to fuel fungal diseases." />
-        </RefSection>
-
-        <RefSection title="Top Challenges & Solutions">
-          <RefItem text="<b>Deer (#1 threat):</b> 8-ft fence is the only reliable solution. Repellents require constant rotation and reapplication. Solid 6-ft stockade fences work because deer won't jump what they can't see through." />
-          <RefItem text="<b>Japanese beetles (peak Jun–Aug):</b> Hand-pick into soapy water ~7 PM (most effective). Use beneficial nematodes, NOT milky spore (doesn't work in NE cool soils). Avoid pheromone traps near garden — they attract more beetles." />
-          <RefItem text="<b>Spotted lanternfly:</b> Now established in Litchfield County with CAES quarantine orders. Kill on sight. Scrape egg masses (Sept–May). Remove tree-of-heaven (preferred host). Feeds on grapes, hops, fruit trees." />
-          <RefItem text="<b>Squash vine borers:</b> Row covers from planting until flowering. Late planting (July) dodges June egg-laying. <b>Butternut squash</b> (C. moschata) and <b>Tromboncino</b> are naturally resistant/immune." />
-          <RefItem text="<b>Late blight (tomatoes/potatoes):</b> Can destroy plants within a week. Choose resistant varieties (Mountain Merit, Kennebec). Monitor USAblight.org for regional outbreaks." />
-          <RefItem text="<b>Apple scab:</b> Controlled most effectively by planting resistant varieties (Liberty, Enterprise, GoldRush). CT's humidity makes it nearly inevitable on susceptible varieties." />
-          <RefItem text="<b>Late spring frosts (as late as May 18):</b> Keep row covers and old blankets ready. Choose late-blooming fruit cultivars (Contender peach, Duke blueberry, Goldcot apricot). Plant stone fruit on north-facing slopes." />
-          <RefItem text="<b>Cucumber beetles:</b> Transmit bacterial wilt, devastating to cucumbers and muskmelons. Row covers until flowering are the primary defense." />
-        </RefSection>
-
-        <RefSection title="Season Extension">
-          <RefItem text="<b>Floating row covers</b> add 2–5°F protection. Essential for early transplants and late fall harvests." />
-          <RefItem text="<b>Low tunnels/cold frames</b> enable harvest of hardy greens (kale, spinach, tatsoi) into December or even through winter." />
-          <RefItem text="<b>High tunnels</b> can create a 200+ day effective season. USDA NRCS EQIP program provides financial assistance." />
-          <RefItem text="<b>Black plastic mulch</b> warms soil 5–10°F earlier — mandatory for melons, sweet potatoes, eggplant, peppers in CT." />
-          <RefItem text="<b>Water-filled cloches</b> (Wall O' Water) protect individual transplants from frosts 2–3 weeks before safe date." />
-        </RefSection>
-
-        <RefSection title="Essential CT Resources">
-          <RefItem text="<b>UConn Home & Garden Education Center:</b> homegarden.cahnr.uconn.edu — staffed horticulturists, diagnostic services, fact sheets. Phone: 877-486-6271" />
-          <RefItem text="<b>UConn Soil Nutrient Analysis Lab:</b> soiltesting.cahnr.uconn.edu — standard test $12" />
-          <RefItem text="<b>CT Agricultural Experiment Station:</b> portal.ct.gov/caes — disease diagnostics, spray guides, pest fact sheets" />
-          <RefItem text="<b>New England Vegetable Management Guide:</b> nevegetable.org — premier crop-by-crop reference for the region" />
-          <RefItem text="<b>Seed companies (NE-focused):</b> Fedco Seeds (fedcoseeds.com), Johnny's Selected Seeds (johnnyseeds.com) — specialize in short-season, cold-hardy varieties" />
-          <RefItem text="<b>Berry plants:</b> Nourse Farms — first choice for strawberries, raspberries, blackberries, currants" />
-          <RefItem text="<b>CT nurseries:</b> Cricket Hill Garden (Thomaston, CT) — unusual plants including medlar, che fruit, tree peonies" />
-        </RefSection>
-
-        <RefSection title="CT Grower Tips (from Reddit, Permies, OurFigs forums)">
-          <RefItem text="A Litchfield County orchardist with 41 fruit trees: <b>Asian pears performed spectacularly</b> while European pears refused to produce and sweet cherries failed due to humidity." />
-          <RefItem text="<b>Apricots were a near-total loss</b> — multiple growers confirm this across western CT. Don't plant unless you enjoy the gamble." />
-          <RefItem text="One CT family has grown <b>in-ground fig trees for 90+ years</b> using winter wrapping — another harvests ~1,300 figs/year from 3 trees." />
-          <RefItem text="Universally cited: <b>'Between the deer and the Japanese beetles, I don't know who's worse.'</b> Invest in fencing BEFORE planting." />
-          <RefItem text="A Thomaston food forest grower reports success with apples, Illinois Everbearing mulberry, medlar, cornelian cherry, garlic, and Asian pears on sandy-loam soil." />
-          <RefItem text="<b>Sungold cherry tomato</b> is the single most recommended variety across all CT gardening forums." />
-        </RefSection>
-      </div>
-
-      {/* ═══════ NOTES PAGE ═══════ */}
-      <div className="page-break" style={{ marginTop: 32 }}>
+      {/* Print Notes Page */}
+      <div className="page-break print-only" style={{ marginTop: 32 }}>
         <div style={{ fontFamily: "'Crimson Pro', Georgia, serif", fontSize: 24, fontWeight: 700, color: "#2C3E2D", marginBottom: 6 }}>Notes & Planning</div>
         <div style={{ fontSize: 10, color: "#666", marginBottom: 16 }}>Use this page for planting dates, soil test results, seed orders, layout sketches, and observations.</div>
         {Array.from({ length: 30 }).map((_, i) => <div key={i} style={{ borderBottom: "1px solid #e8e8e3", height: 26 }} />)}
       </div>
 
       {/* Footer */}
-      <div style={{ textAlign: "center", fontSize: 8, color: "#bbb", padding: "12px 0", borderTop: "1px solid #e8e8e3", marginTop: 16 }}>
+      <div className="print-only" style={{ textAlign: "center", fontSize: 8, color: "#bbb", padding: "12px 0", borderTop: "1px solid #e8e8e3", marginTop: 16 }}>
         New Milford, CT Grow Guide · Zone 6b · Sources: UConn Extension, CT Agricultural Experiment Station, NE Vegetable Management Guide, Reddit/Permies/OurFigs community reports
       </div>
     </div>
